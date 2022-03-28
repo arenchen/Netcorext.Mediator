@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{98621323-FFFB-4240-B14E-45EE65F474A5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netcorext.Mediator.Abstractions", "src\Netcorext.Mediator.Abstractions\Netcorext.Mediator.Abstractions.csproj", "{38A02098-9B26-4D7D-B275-21C0C0539A5E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netcorext.Mediator.Queuing.Redis", "src\Netcorext.Mediator.Queuing.Redis\Netcorext.Mediator.Queuing.Redis.csproj", "{EB493171-A6D9-4F4F-A39B-EE6BEBD23849}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netcorext.Mediator", "src\Netcorext.Mediator\Netcorext.Mediator.csproj", "{BFA7F585-0BCB-4283-9BC2-89658A5C2085}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{38A02098-9B26-4D7D-B275-21C0C0539A5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38A02098-9B26-4D7D-B275-21C0C0539A5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38A02098-9B26-4D7D-B275-21C0C0539A5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38A02098-9B26-4D7D-B275-21C0C0539A5E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB493171-A6D9-4F4F-A39B-EE6BEBD23849}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB493171-A6D9-4F4F-A39B-EE6BEBD23849}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB493171-A6D9-4F4F-A39B-EE6BEBD23849}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB493171-A6D9-4F4F-A39B-EE6BEBD23849}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BFA7F585-0BCB-4283-9BC2-89658A5C2085}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BFA7F585-0BCB-4283-9BC2-89658A5C2085}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BFA7F585-0BCB-4283-9BC2-89658A5C2085}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BFA7F585-0BCB-4283-9BC2-89658A5C2085}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{38A02098-9B26-4D7D-B275-21C0C0539A5E} = {98621323-FFFB-4240-B14E-45EE65F474A5}
+		{EB493171-A6D9-4F4F-A39B-EE6BEBD23849} = {98621323-FFFB-4240-B14E-45EE65F474A5}
+		{BFA7F585-0BCB-4283-9BC2-89658A5C2085} = {98621323-FFFB-4240-B14E-45EE65F474A5}
+	EndGlobalSection
+EndGlobal
