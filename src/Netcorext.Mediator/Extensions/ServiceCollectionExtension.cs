@@ -10,9 +10,9 @@ namespace Microsoft.Extensions.DependencyInjection;
 
 public static class ServiceCollectionExtension
 {
-    public static MediatorBuilder AddMediator(this IServiceCollection services)
+    public static MediatorBuilder AddMediator(this IServiceCollection services, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
-        return AddMediator(services, null);
+        return AddMediator(services, null,null, serviceLifetime);
     }
 
     public static MediatorBuilder AddMediator(this IServiceCollection services, Action<IServiceProvider, MediatorOptions>? configure, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
@@ -22,36 +22,34 @@ public static class ServiceCollectionExtension
 
     public static MediatorBuilder AddMediator(this IServiceCollection services, Type[]? types, Action<IServiceProvider, MediatorOptions>? configure, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
-        var builder = new MediatorBuilder(services, configure, serviceLifetime);
+        var builder = new MediatorBuilder(services, configure);
 
         builder.Services.AddTransient<IQueuing, DefaultQueuing>();
         builder.Services.AddTransient<IDispatcher, Dispatcher>();
         builder.Services.AddTransient<IConsumerRunner, DefaultConsumerRunner>();
         builder.Services.AddHostedService<ConsumerWorker>();
 
-        return builder.AddServices(types);
+        return builder.AddServices(serviceLifetime, types);
     }
 
-    public static MediatorBuilder AddServices(this MediatorBuilder builder, params Type[]? types)
+    public static MediatorBuilder AddServices(this MediatorBuilder builder, ServiceLifetime serviceLifetime = ServiceLifetime.Transient, params Type[]? types)
     {
-        var serviceMaps = FindServices(types).ToArray();
+        var serviceMaps = FindServices(serviceLifetime, types).ToArray();
 
         if (serviceMaps == null || !serviceMaps.Any())
             throw new ArgumentNullException(nameof(serviceMaps));
 
         foreach (var map in serviceMaps)
         {
-            if (builder.ServiceMaps.Any(t => t.Implementation == map.Implementation)) continue;
-
-            builder.Services.TryAdd(new ServiceDescriptor(map.Interface, map.Implementation, builder.ServiceLifetime));
             builder.ServiceMaps.Add(map);
+            builder.Services.AddOrReplace(map.Interface, map.Implementation, map.ServiceLifetime);
         }
 
         serviceMaps = builder.ServiceMaps.ToArray();
 
         builder.Services.AddOrReplace(typeof(MediatorOptions), provider =>
                                                                {
-                                                                   var options = new MediatorOptions(provider, serviceMaps);
+                                                                   var options = new MediatorOptions(serviceMaps);
 
                                                                    builder.Configure?.Invoke(provider, options);
 
@@ -79,7 +77,7 @@ public static class ServiceCollectionExtension
 
     public static MediatorBuilder AddValidatorPipeline(this MediatorBuilder builder)
     {
-        builder.Services.AddValidatorsFromAssembly(Assembly.GetEntryAssembly(), builder.ServiceLifetime);
+        builder.Services.AddValidatorsFromAssembly(Assembly.GetEntryAssembly(), ServiceLifetime.Transient);
         builder.AddPipeline<ValidatorPipeline>();
 
         return builder;
@@ -92,7 +90,7 @@ public static class ServiceCollectionExtension
         return builder;
     }
 
-    private static IEnumerable<ServiceMap> FindServices(params Type[]? types)
+    private static IEnumerable<ServiceMap> FindServices(ServiceLifetime serviceLifetime = ServiceLifetime.Transient, params Type[]? types)
     {
         var handlerTypes = Assembly.GetEntryAssembly()
                                    .GetTypes()
@@ -112,7 +110,8 @@ public static class ServiceCollectionExtension
                                                 {
                                                     Implementation = t.Implementation,
                                                     Interface = t.Interface!,
-                                                    Service = t.Interface!.GenericTypeArguments.First()
+                                                    Service = t.Interface!.GenericTypeArguments.First(),
+                                                    ServiceLifetime = serviceLifetime
                                                 });
 
         if (types != null && types.Any())

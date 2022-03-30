@@ -11,10 +11,12 @@ public class Dispatcher : IDispatcher
     private readonly IQueuing _queuing;
     private readonly IEnumerable<IPipeline> _pipelines;
     private readonly MediatorOptions _options;
+    private readonly IServiceProvider _serviceProvider;
     private readonly Type _voidTaskResult = Type.GetType("System.Threading.Tasks.VoidTaskResult");
 
-    public Dispatcher(IQueuing queuing, IEnumerable<IPipeline> pipelines, MediatorOptions options)
+    public Dispatcher(IServiceProvider serviceProvider, IQueuing queuing, IEnumerable<IPipeline> pipelines, MediatorOptions options)
     {
+        _serviceProvider = serviceProvider;
         _queuing = queuing;
         _pipelines = pipelines;
         _options = options;
@@ -43,9 +45,7 @@ public class Dispatcher : IDispatcher
 
                                                   if (handlerType == null) throw new ArgumentNullException(nameof(handlerType), "Service handler not found");
 
-                                                  //var genericType = handlerType.MakeGenericType(req.GetType(), typeof(TResult));
-
-                                                  var handler = _options.ServiceProvider.GetRequiredService(handlerType);
+                                                  var handler = _serviceProvider.GetRequiredService(handlerType);
 
                                                   var method = handlerType.GetMethod(Constants.HANDLER_METHOD, BindingFlags.Public | BindingFlags.Instance);
 
