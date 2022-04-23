@@ -45,13 +45,17 @@ public class RedisConsumerRunner : IConsumerRunner
             if (!string.IsNullOrWhiteSpace(_options.MachineName) && _redis.XInfoConsumers(key, _options.GroupName).All(t => t.name != _options.MachineName))
                 _redis.XGroupCreateConsumer(key, _options.GroupName, _options.MachineName);
             
-            var pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE);
+            var pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE)
+                                      .Where(t => t.idle > (_options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME))
+                                      .ToArray();
             var hasPending = false;
             
             while (pendingResult.Any())
             {
                 var pendingIds = pendingResult.Select(t => t.id).ToArray();
-                
+                var lastId = pendingIds.Last();
+                lastId = lastId.Split("-")[0];
+                var nextId = lastId + "-9999";
                 pendingIds = _redis.XClaimJustId(key, _options.GroupName, _options.MachineName, _options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME, pendingIds);
 
                 if (pendingIds.Any())
@@ -59,7 +63,9 @@ public class RedisConsumerRunner : IConsumerRunner
                     hasPending = true;
                 }
                 
-                pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE);
+                pendingResult = _redis.XPending(key, _options.GroupName, nextId, "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE)
+                                      .Where(t => t.idle > (_options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME))
+                                      .ToArray();
             }
             
             if (hasPending)
