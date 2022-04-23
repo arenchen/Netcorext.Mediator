@@ -40,15 +40,29 @@ public class RedisConsumerRunner : IConsumerRunner
                                        service.Service.FullName!);
 
             if (!_redis.Exists(key) || _redis.XInfoGroups(key).All(t => t.name != _options.GroupName))
-                _redis.XGroupCreate(key, _options.GroupName, "0", true);
+                _redis.XGroupCreate(key, _options.GroupName, _options.GroupNewestId ? "$" : "0", true);
 
             if (!string.IsNullOrWhiteSpace(_options.MachineName) && _redis.XInfoConsumers(key, _options.GroupName).All(t => t.name != _options.MachineName))
                 _redis.XGroupCreateConsumer(key, _options.GroupName, _options.MachineName);
+            
+            var pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE);
+            var hasPending = false;
+            
+            while (pendingResult.Any())
+            {
+                var pendingIds = pendingResult.Select(t => t.id).ToArray();
+                
+                pendingIds = _redis.XClaimJustId(key, _options.GroupName, _options.MachineName, _options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME, pendingIds);
 
-            var groups = _redis.XInfoGroups(key);
-            var count = groups.FirstOrDefault(t => t.name == _options.GroupName)?.pending ?? 0;
-
-            if (count > 0)
+                if (pendingIds.Any())
+                {
+                    hasPending = true;
+                }
+                
+                pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE);
+            }
+            
+            if (hasPending)
                 tasks.Add(ReadStreamAsync(key, "0", cancellationToken));
 
             channels.Add(key);
