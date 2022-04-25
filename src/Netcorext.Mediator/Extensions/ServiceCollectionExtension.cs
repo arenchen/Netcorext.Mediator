@@ -89,6 +89,12 @@ public static class ServiceCollectionExtension
 
         return builder;
     }
+    public static MediatorBuilder AddPipeline<TPipeline, TRequest>(this MediatorBuilder builder) where TPipeline : class, IPipeline<TRequest>
+    {
+        builder.Services.AddTransient<IPipeline<TRequest>, TPipeline>();
+
+        return builder;
+    }
 
     private static IEnumerable<ServiceMap> FindServices(ServiceLifetime serviceLifetime = ServiceLifetime.Transient, params Type[]? types)
     {
