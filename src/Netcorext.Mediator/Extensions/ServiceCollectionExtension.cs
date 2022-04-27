@@ -12,7 +12,7 @@ public static class ServiceCollectionExtension
 {
     public static MediatorBuilder AddMediator(this IServiceCollection services, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
     {
-        return AddMediator(services, null,null, serviceLifetime);
+        return AddMediator(services, null, null, serviceLifetime);
     }
 
     public static MediatorBuilder AddMediator(this IServiceCollection services, Action<IServiceProvider, MediatorOptions>? configure, ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
@@ -36,8 +36,7 @@ public static class ServiceCollectionExtension
     {
         var serviceMaps = FindServices(serviceLifetime, types).ToArray();
 
-        if (serviceMaps == null || !serviceMaps.Any())
-            throw new ArgumentNullException(nameof(serviceMaps));
+        if (serviceMaps == null || !serviceMaps.Any()) throw new ArgumentNullException(nameof(serviceMaps));
 
         foreach (var map in serviceMaps)
         {
@@ -89,9 +88,11 @@ public static class ServiceCollectionExtension
 
         return builder;
     }
-    public static MediatorBuilder AddPipeline<TPipeline, TRequest>(this MediatorBuilder builder) where TPipeline : class, IPipeline<TRequest>
+
+    public static MediatorBuilder AddRequestPipeline<TPipeline, TRequest>(this MediatorBuilder builder) where TPipeline : class, IRequestPipeline<TRequest>
+                                                                                                        where TRequest : class, IRequest
     {
-        builder.Services.AddTransient<IPipeline<TRequest>, TPipeline>();
+        builder.Services.AddTransient<IRequestPipeline<TRequest>, TPipeline>();
 
         return builder;
     }
@@ -120,8 +121,7 @@ public static class ServiceCollectionExtension
                                                     ServiceLifetime = serviceLifetime
                                                 });
 
-        if (types != null && types.Any())
-            handlerTypes = handlerTypes.Join(types, map => map.Service, type => type, (map, _) => map);
+        if (types != null && types.Any()) handlerTypes = handlerTypes.Join(types, map => map.Service, type => type, (map, _) => map);
 
         return handlerTypes;
     }

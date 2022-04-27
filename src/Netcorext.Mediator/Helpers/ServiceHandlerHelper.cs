@@ -24,7 +24,8 @@ public static class ServiceHandlerHelper
             {
                 if (parameters[i] == null
                  || ps[i].ParameterType.IsInstanceOfType(parameters[i])
-                 || ps[i].ParameterType == parameters[i]?.GetType()) continue;
+                 || ps[i].ParameterType == parameters[i]?.GetType())
+                    continue;
 
                 isEq = false;
 

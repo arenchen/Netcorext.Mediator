@@ -34,35 +34,46 @@ public class Dispatcher : IDispatcher
 
     public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default, params object?[]? parameters)
     {
-        PipelineDelegate<TResult?> pipeline = async (req, ct) =>
-                                              {
-                                                  var args = new List<object?> { req };
-                                                  if (parameters != null && parameters.Any()) args.AddRange(parameters);
-                                                  args.Add(cancellationToken);
-                                                  parameters = args.ToArray();
+        async Task<TResult?> RequestPipeline(IRequest<TResult?> req, CancellationToken ct)
+        {
+            var pipelineType = typeof(IRequestPipeline<>).MakeGenericType(request.GetType());
+            var pipelineMethodInfo = pipelineType.GetMethod("InvokeAsync");
+            Task Pipeline(IRequest<TResult> req, CancellationToken token) => Task.CompletedTask;
+            
+            var pipeline = _serviceProvider.GetServices(pipelineType)
+                                            .Select(t => new Func<RequestPipelineDelegate<IRequest<TResult>>, RequestPipelineDelegate<IRequest<TResult>>>(pipe => async (msg, token) => { await (Task)pipelineMethodInfo?.Invoke(t, new object[] { msg, pipe, token })!; }))
+                                            .Reverse()
+                                            .Aggregate((RequestPipelineDelegate<IRequest<TResult>>)Pipeline, (current, next) => next(current));
 
-                                                  var handlerType = ServiceHandlerHelper.FindHandler(_options.ServiceMaps, parameters);
+            await pipeline.Invoke(request, ct);
 
-                                                  if (handlerType == null) throw new ArgumentNullException(nameof(handlerType), "Service handler not found");
+            var args = new List<object?> { req };
+            if (parameters != null && parameters.Any()) args.AddRange(parameters);
+            args.Add(ct);
+            parameters = args.ToArray();
 
-                                                  var handler = _serviceProvider.GetRequiredService(handlerType);
+            var handlerType = ServiceHandlerHelper.FindHandler(_options.ServiceMaps, parameters);
 
-                                                  var method = handlerType.GetMethod(Constants.HANDLER_METHOD, BindingFlags.Public | BindingFlags.Instance);
+            if (handlerType == null) throw new ArgumentNullException(nameof(handlerType), "Service handler not found");
 
-                                                  var task = (Task)method?.Invoke(handler, parameters)!;
+            var handler = _serviceProvider.GetRequiredService(handlerType);
 
-                                                  await task.ConfigureAwait(false);
+            var method = handlerType.GetMethod(Constants.HANDLER_METHOD, BindingFlags.Public | BindingFlags.Instance);
 
-                                                  var resultProperty = task.GetType().GetProperty(Constants.TASK_RESULT);
+            var task = (Task)method?.Invoke(handler, parameters)!;
 
-                                                  var result = resultProperty!.GetValue(task);
+            await task.ConfigureAwait(false);
 
-                                                  return result == null || result.GetType() == _voidTaskResult ? default : (TResult)result;
-                                              };
+            var resultProperty = task.GetType().GetProperty(Constants.TASK_RESULT);
+
+            var result = resultProperty!.GetValue(task);
+
+            return result == null || result.GetType() == _voidTaskResult ? default : (TResult)result;
+        }
 
         var result = _pipelines.Select(t => new Func<PipelineDelegate<TResult?>, PipelineDelegate<TResult?>>(pipe => async (msg, token) => await t.InvokeAsync(msg, pipe, token)))
                                .Reverse()
-                               .Aggregate(pipeline, (current, next) => next(current));
+                               .Aggregate((PipelineDelegate<TResult?>)RequestPipeline, (current, next) => next(current));
 
         return await result.Invoke(request, cancellationToken);
     }
