@@ -1,6 +1,6 @@
 namespace Netcorext.Mediator.Pipelines;
 
-public interface IRequestPipeline<TRequest> where TRequest : class, IRequest
+public interface IRequestPipeline<in TRequest, TResult> where TRequest : class, IRequest<TResult>
 {
-    Task InvokeAsync(TRequest request, RequestPipelineDelegate<TRequest> next, CancellationToken cancellationToken = default);
+    Task<TResult?> InvokeAsync(TRequest request, PipelineDelegate<TResult> next, CancellationToken cancellationToken = default);
 }

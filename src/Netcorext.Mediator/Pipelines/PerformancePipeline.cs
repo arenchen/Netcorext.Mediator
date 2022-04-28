@@ -14,7 +14,7 @@ public class PerformancePipeline : IPipeline
         _logger = logger;
     }
 
-    public async Task<TResult> InvokeAsync<TResult>(IRequest<TResult> request, PipelineDelegate<TResult> next, CancellationToken cancellationToken = default)
+    public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, PipelineDelegate<TResult> next, CancellationToken cancellationToken = default)
     {
         var stopwatch = new Stopwatch();
 

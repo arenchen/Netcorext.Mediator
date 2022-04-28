@@ -6,7 +6,7 @@ internal class ConsumerWorker : IHostedService, IDisposable
 {
     private readonly MediatorOptions _options;
     private readonly IConsumerRunner _runner;
-    private Task _executingTask;
+    private Task _executingTask = null!;
     private CancellationTokenSource _cancellationToken = new CancellationTokenSource();
 
     public ConsumerWorker(MediatorOptions options, IConsumerRunner runner)

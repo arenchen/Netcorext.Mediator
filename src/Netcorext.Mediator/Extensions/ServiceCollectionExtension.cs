@@ -89,17 +89,17 @@ public static class ServiceCollectionExtension
         return builder;
     }
 
-    public static MediatorBuilder AddRequestPipeline<TPipeline, TRequest>(this MediatorBuilder builder) where TPipeline : class, IRequestPipeline<TRequest>
-                                                                                                        where TRequest : class, IRequest
+    public static MediatorBuilder AddRequestPipeline<TPipeline, TRequest, TResult>(this MediatorBuilder builder) where TPipeline : class, IRequestPipeline<TRequest, TResult>
+                                                                                                                 where TRequest : class, IRequest<TResult>
     {
-        builder.Services.AddTransient<IRequestPipeline<TRequest>, TPipeline>();
+        builder.Services.AddTransient<IRequestPipeline<TRequest, TResult>, TPipeline>();
 
         return builder;
     }
 
     private static IEnumerable<ServiceMap> FindServices(ServiceLifetime serviceLifetime = ServiceLifetime.Transient, params Type[]? types)
     {
-        var handlerTypes = Assembly.GetEntryAssembly()
+        var handlerTypes = Assembly.GetEntryAssembly()?
                                    .GetTypes()
                                    .Cast<TypeInfo>()
                                    .Select(t => new
@@ -119,7 +119,7 @@ public static class ServiceCollectionExtension
                                                     Interface = t.Interface!,
                                                     Service = t.Interface!.GenericTypeArguments.First(),
                                                     ServiceLifetime = serviceLifetime
-                                                });
+                                                }) ?? Array.Empty<ServiceMap>();
 
         if (types != null && types.Any()) handlerTypes = handlerTypes.Join(types, map => map.Service, type => type, (map, _) => map);
 

@@ -12,7 +12,7 @@ public class Dispatcher : IDispatcher
     private readonly IEnumerable<IPipeline> _pipelines;
     private readonly MediatorOptions _options;
     private readonly IServiceProvider _serviceProvider;
-    private readonly Type _voidTaskResult = Type.GetType("System.Threading.Tasks.VoidTaskResult");
+    private readonly Type _voidTaskResult = Type.GetType("System.Threading.Tasks.VoidTaskResult")!;
 
     public Dispatcher(IServiceProvider serviceProvider, IQueuing queuing, IEnumerable<IPipeline> pipelines, MediatorOptions options)
     {
@@ -29,24 +29,17 @@ public class Dispatcher : IDispatcher
 
     public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        
         return await _queuing.PublishAsync(request, cancellationToken);
     }
 
     public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default, params object?[]? parameters)
     {
-        async Task<TResult?> RequestPipeline(IRequest<TResult?> req, CancellationToken ct)
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        
+        async Task<TResult?> Pipeline(IRequest<TResult> req, CancellationToken ct)
         {
-            var pipelineType = typeof(IRequestPipeline<>).MakeGenericType(request.GetType());
-            var pipelineMethodInfo = pipelineType.GetMethod("InvokeAsync");
-            Task Pipeline(IRequest<TResult> req, CancellationToken token) => Task.CompletedTask;
-            
-            var pipeline = _serviceProvider.GetServices(pipelineType)
-                                            .Select(t => new Func<RequestPipelineDelegate<IRequest<TResult>>, RequestPipelineDelegate<IRequest<TResult>>>(pipe => async (msg, token) => { await (Task)pipelineMethodInfo?.Invoke(t, new object[] { msg, pipe, token })!; }))
-                                            .Reverse()
-                                            .Aggregate((RequestPipelineDelegate<IRequest<TResult>>)Pipeline, (current, next) => next(current));
-
-            await pipeline.Invoke(request, ct);
-
             var args = new List<object?> { req };
             if (parameters != null && parameters.Any()) args.AddRange(parameters);
             args.Add(ct);
@@ -68,12 +61,19 @@ public class Dispatcher : IDispatcher
 
             var result = resultProperty!.GetValue(task);
 
-            return result == null || result.GetType() == _voidTaskResult ? default : (TResult)result;
+            return result == null || result?.GetType() == _voidTaskResult ? default : (TResult)result!;
         }
+        
+        var pipelineType = typeof(IRequestPipeline<,>).MakeGenericType(request.GetType(), typeof(TResult));
 
-        var result = _pipelines.Select(t => new Func<PipelineDelegate<TResult?>, PipelineDelegate<TResult?>>(pipe => async (msg, token) => await t.InvokeAsync(msg, pipe, token)))
-                               .Reverse()
-                               .Aggregate((PipelineDelegate<TResult?>)RequestPipeline, (current, next) => next(current));
+        var pipelineMethodInfo = pipelineType.GetMethod("InvokeAsync");
+
+        var result = _serviceProvider.GetServices(pipelineType)
+                                     .Select(t => new Func<PipelineDelegate<TResult>, PipelineDelegate<TResult>>(pipe => async (msg, token) => await (Task<TResult>)pipelineMethodInfo?.Invoke(t, new object[] { msg, pipe, token })!))
+                                     .Reverse()
+                                     .Union(_pipelines.Select(t => new Func<PipelineDelegate<TResult>, PipelineDelegate<TResult>>(pipe => async (msg, token) => await t.InvokeAsync(msg, pipe, token)))
+                                                      .Reverse())
+                                     .Aggregate((PipelineDelegate<TResult>)Pipeline, (current, next) => next(current));
 
         return await result.Invoke(request, cancellationToken);
     }

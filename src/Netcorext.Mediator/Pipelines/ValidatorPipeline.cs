@@ -11,7 +11,7 @@ public class ValidatorPipeline : IPipeline
         _serviceProvider = serviceProvider;
     }
 
-    public async Task<TResult> InvokeAsync<TResult>(IRequest<TResult> request, PipelineDelegate<TResult> next, CancellationToken cancellationToken = default)
+    public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, PipelineDelegate<TResult> next, CancellationToken cancellationToken = default)
     {
         var genericType = typeof(IValidator<>).MakeGenericType(request.GetType());
 
