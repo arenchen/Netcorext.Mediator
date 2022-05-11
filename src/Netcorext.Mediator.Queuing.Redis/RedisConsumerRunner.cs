@@ -1,5 +1,6 @@
 using System.Reflection;
 using FreeRedis;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Netcorext.Mediator.Queuing.Redis.Extensions;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
@@ -10,19 +11,17 @@ internal class RedisConsumerRunner : IConsumerRunner
 {
     private readonly RedisQueuing _queuing;
     private readonly RedisClient _redis;
-    private readonly IDispatcher _dispatcher;
+    private readonly IServiceProvider _serviceProvider;
     private readonly RedisOptions _options;
     private readonly ILogger<RedisConsumerRunner> _logger;
-    private readonly MethodInfo _dispatcherInvokeMethodInfo;
 
-    public RedisConsumerRunner(IDispatcher dispatcher, IQueuing queuing, RedisOptions options, ILogger<RedisConsumerRunner> logger)
+    public RedisConsumerRunner(IServiceProvider serviceProvider, IQueuing queuing, RedisOptions options, ILogger<RedisConsumerRunner> logger)
     {
         _queuing = (RedisQueuing)queuing;
         _redis = _queuing.RedisClient;
-        _dispatcher = dispatcher;
+        _serviceProvider = serviceProvider;
         _options = options;
         _logger = logger;
-        _dispatcherInvokeMethodInfo = dispatcher.GetType().GetMethod(Constants.DISPATCHER_INVOKE, BindingFlags.Public | BindingFlags.Instance)!;
         _redis.Connected += (sender, args) => _logger.LogTrace("{Log}", args.Pool.StatisticsFullily);
         _redis.Unavailable += (sender, args) => _logger.LogTrace("{Log}", args.Pool.UnavailableException?.Message);
         _redis.Notice += (_, args) => _logger.LogTrace("{Log}", args.Log);
@@ -145,17 +144,22 @@ internal class RedisConsumerRunner : IConsumerRunner
     {
         try
         {
+            using var scope = _serviceProvider.CreateScope();
+            var provider = scope.ServiceProvider;
+            var dispatcher = provider.GetRequiredService<IDispatcher>();
+            var dispatcherInvokeMethodInfo = dispatcher.GetType().GetMethod(Constants.DISPATCHER_INVOKE, BindingFlags.Public | BindingFlags.Instance)!;
+            
             var serviceType = (TypeInfo)Type.GetType(stream.Message.ServiceType);
 
             var resultType = serviceType!.ImplementedInterfaces.First(t => t.GetGenericTypeDefinition() == typeof(IRequest<>));
 
-            var proxyInvokeAsync = _dispatcherInvokeMethodInfo.MakeGenericMethod(resultType.GenericTypeArguments[0]);
+            var proxyInvokeAsync = dispatcherInvokeMethodInfo.MakeGenericMethod(resultType.GenericTypeArguments[0]);
 
             object?[]? args = null;
 
             if (stream.Message.Referer != null) args = new[] { stream.Message.Payload, stream.Message.Error };
 
-            var task = (Task?)proxyInvokeAsync.Invoke(_dispatcher, new[] { stream.Message.Referer ?? stream.Message.Payload, cancellationToken, args });
+            var task = (Task?)proxyInvokeAsync.Invoke(dispatcher, new[] { stream.Message.Referer ?? stream.Message.Payload, cancellationToken, args });
 
             await task!.ConfigureAwait(false);
 
