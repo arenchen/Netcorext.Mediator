@@ -37,18 +37,18 @@ public class Dispatcher : IDispatcher
     public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default, params object?[]? parameters)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
+
+        var args = new List<object?> { request };
+        if (parameters != null && parameters.Any()) args.AddRange(parameters);
+        args.Add(cancellationToken);
+        parameters = args.ToArray();
+
+        var handlerType = ServiceHandlerHelper.FindHandler(_options.ServiceMaps, parameters);
+        
+        if (handlerType == null) throw new ArgumentNullException(nameof(handlerType), "Service handler not found");
         
         async Task<TResult?> Pipeline(IRequest<TResult> req, CancellationToken ct)
         {
-            var args = new List<object?> { req };
-            if (parameters != null && parameters.Any()) args.AddRange(parameters);
-            args.Add(ct);
-            parameters = args.ToArray();
-
-            var handlerType = ServiceHandlerHelper.FindHandler(_options.ServiceMaps, parameters);
-
-            if (handlerType == null) throw new ArgumentNullException(nameof(handlerType), "Service handler not found");
-
             var handler = _serviceProvider.GetRequiredService(handlerType);
 
             var method = handlerType.GetMethod(Constants.HANDLER_METHOD, BindingFlags.Public | BindingFlags.Instance);
@@ -67,12 +67,15 @@ public class Dispatcher : IDispatcher
         var pipelineType = typeof(IRequestPipeline<,>).MakeGenericType(request.GetType(), typeof(TResult));
 
         var pipelineMethodInfo = pipelineType.GetMethod("InvokeAsync");
-
+        
+        var pips = _pipelines.Where(t => handlerType.GetGenericTypeDefinition() != typeof(IResponseHandler<,>) || handlerType.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) && t.GetType() != typeof(ValidatorPipeline))
+                             .Select(t => new Func<PipelineDelegate<TResult>, PipelineDelegate<TResult>>(pipe => async (msg, token) => await t.InvokeAsync(msg, pipe, token)))
+                             .Reverse();
+        
         var result = _serviceProvider.GetServices(pipelineType)
                                      .Select(t => new Func<PipelineDelegate<TResult>, PipelineDelegate<TResult>>(pipe => async (msg, token) => await (Task<TResult>)pipelineMethodInfo?.Invoke(t, new object[] { msg, pipe, token })!))
                                      .Reverse()
-                                     .Union(_pipelines.Select(t => new Func<PipelineDelegate<TResult>, PipelineDelegate<TResult>>(pipe => async (msg, token) => await t.InvokeAsync(msg, pipe, token)))
-                                                      .Reverse())
+                                     .Union(pips)
                                      .Aggregate((PipelineDelegate<TResult>)Pipeline, (current, next) => next(current));
 
         return await result.Invoke(request, cancellationToken);

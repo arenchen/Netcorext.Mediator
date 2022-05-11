@@ -1,6 +1,6 @@
 namespace Netcorext.Mediator.Queuing.Redis;
 
-public class StreamMessage
+internal class StreamMessage
 {
     public string Key { get; set; }
     public string StreamId { get; set; }

@@ -7,7 +7,7 @@ using Netcorext.Mediator.Queuing.Redis.Helpers;
 
 namespace Netcorext.Mediator.Queuing.Redis;
 
-public class RedisQueuing : IQueuing, IDisposable
+internal class RedisQueuing : IQueuing, IDisposable
 {
     private readonly RedisOptions _options;
     private readonly ILogger<RedisQueuing> _logger;

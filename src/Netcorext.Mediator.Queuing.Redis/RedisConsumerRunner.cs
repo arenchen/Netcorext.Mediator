@@ -6,7 +6,7 @@ using Netcorext.Mediator.Queuing.Redis.Helpers;
 
 namespace Netcorext.Mediator.Queuing.Redis;
 
-public class RedisConsumerRunner : IConsumerRunner
+internal class RedisConsumerRunner : IConsumerRunner
 {
     private readonly RedisQueuing _queuing;
     private readonly RedisClient _redis;
@@ -24,7 +24,7 @@ public class RedisConsumerRunner : IConsumerRunner
         _logger = logger;
         _dispatcherInvokeMethodInfo = dispatcher.GetType().GetMethod(Constants.DISPATCHER_INVOKE, BindingFlags.Public | BindingFlags.Instance)!;
         _redis.Connected += (sender, args) => _logger.LogTrace("{Log}", args.Pool.StatisticsFullily);
-        _redis.Unavailable += (sender, args) => _logger.LogTrace("{Log}", args.Pool.UnavailableException.Message);
+        _redis.Unavailable += (sender, args) => _logger.LogTrace("{Log}", args.Pool.UnavailableException?.Message);
         _redis.Notice += (_, args) => _logger.LogTrace("{Log}", args.Log);
     }
 
@@ -38,18 +38,17 @@ public class RedisConsumerRunner : IConsumerRunner
             var key = KeyHelper.Concat(_options.Prefix,
                                        service.Interface.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) ? _options.GroupName : string.Empty,
                                        service.Service.FullName!);
-
-            if (!_redis.Exists(key) || _redis.XInfoGroups(key).All(t => t.name != _options.GroupName))
-                _redis.XGroupCreate(key, _options.GroupName, _options.GroupNewestId ? "$" : "0", true);
-
-            if (!string.IsNullOrWhiteSpace(_options.MachineName) && _redis.XInfoConsumers(key, _options.GroupName).All(t => t.name != _options.MachineName))
-                _redis.XGroupCreateConsumer(key, _options.GroupName, _options.MachineName);
             
+            if (!_redis.Exists(key) || _redis.XInfoGroups(key).All(t => t.name != _options.GroupName)) _redis.XGroupCreate(key, _options.GroupName, _options.GroupNewestId ? "$" : "0", true);
+
+            if (!string.IsNullOrWhiteSpace(_options.MachineName) && _redis.XInfoConsumers(key, _options.GroupName).All(t => t.name != _options.MachineName)) _redis.XGroupCreateConsumer(key, _options.GroupName, _options.MachineName);
+
             var pendingResult = _redis.XPending(key, _options.GroupName, "-", "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE)
                                       .Where(t => t.idle > (_options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME))
                                       .ToArray();
+
             var hasPending = false;
-            
+
             while (pendingResult.Any())
             {
                 var pendingIds = pendingResult.Select(t => t.id).ToArray();
@@ -62,14 +61,13 @@ public class RedisConsumerRunner : IConsumerRunner
                 {
                     hasPending = true;
                 }
-                
+
                 pendingResult = _redis.XPending(key, _options.GroupName, nextId, "+", _options.StreamBatchSize ?? RedisOptions.DEFAULT_STREAM_BATCH_SIZE)
                                       .Where(t => t.idle > (_options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME))
                                       .ToArray();
             }
-            
-            if (hasPending)
-                tasks.Add(ReadStreamAsync(key, "0", cancellationToken));
+
+            if (hasPending) tasks.Add(ReadStreamAsync(key, "0", cancellationToken));
 
             channels.Add(key);
         }
@@ -101,14 +99,23 @@ public class RedisConsumerRunner : IConsumerRunner
             {
                 if (entry.Message == null) continue;
 
-                var message = new Message
-                              {
-                                  ServiceType = entry.Message.ServiceType,
-                                  RefererType = entry.Message.PayloadType,
-                                  Referer = entry.Message.Payload,
-                                  GroupName = _options.GroupName,
-                                  MachineName = _options.MachineName
-                              };
+                var message = entry.Message.Referer == null
+                                  ? new Message
+                                    {
+                                        ServiceType = entry.Message.ServiceType,
+                                        RefererType = entry.Message.PayloadType,
+                                        Referer = entry.Message.Payload,
+                                        GroupName = _options.GroupName,
+                                        MachineName = _options.MachineName
+                                    }
+                                  : new Message
+                                    {
+                                        ServiceType = entry.Message.ServiceType,
+                                        RefererType = entry.Message.RefererType,
+                                        Referer = entry.Message.Referer,
+                                        GroupName = _options.GroupName,
+                                        MachineName = _options.MachineName
+                                    };
 
                 try
                 {
@@ -146,8 +153,7 @@ public class RedisConsumerRunner : IConsumerRunner
 
             object?[]? args = null;
 
-            if (stream.Message.Referer != null)
-                args = new[] { stream.Message.Payload, stream.Message.Error };
+            if (stream.Message.Referer != null) args = new[] { stream.Message.Payload, stream.Message.Error };
 
             var task = (Task?)proxyInvokeAsync.Invoke(_dispatcher, new[] { stream.Message.Referer ?? stream.Message.Payload, cancellationToken, args });
 

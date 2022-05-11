@@ -2,7 +2,7 @@ using FreeRedis;
 
 namespace Netcorext.Mediator.Queuing.Redis;
 
-public class RedisClientConnection
+internal class RedisClientConnection
 {
     private static Lazy<RedisClient>? _lazyRedisClient;
     private static readonly object Locker = new object();
