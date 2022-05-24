@@ -41,6 +41,7 @@ public static class ServiceCollectionExtension
         foreach (var map in serviceMaps)
         {
             builder.ServiceMaps.Add(map);
+
             builder.Services.AddOrReplace(map.Interface, map.Implementation, map.ServiceLifetime);
         }
 
@@ -118,7 +119,8 @@ public static class ServiceCollectionExtension
                                                     Implementation = t.Implementation,
                                                     Interface = t.Interface!,
                                                     Service = t.Interface!.GenericTypeArguments.First(),
-                                                    ServiceLifetime = serviceLifetime
+                                                    ServiceLifetime = serviceLifetime,
+                                                    ArgumentsCount = t.Interface.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) ? 4 : 2
                                                 }) ?? Array.Empty<ServiceMap>();
 
         if (types != null && types.Any()) handlerTypes = handlerTypes.Join(types, map => map.Service, type => type, (map, _) => map);

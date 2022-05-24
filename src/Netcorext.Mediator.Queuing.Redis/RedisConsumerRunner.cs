@@ -12,14 +12,16 @@ internal class RedisConsumerRunner : IConsumerRunner
     private readonly RedisQueuing _queuing;
     private readonly RedisClient _redis;
     private readonly IServiceProvider _serviceProvider;
+    private readonly MediatorOptions _mediatorOptions;
     private readonly RedisOptions _options;
     private readonly ILogger<RedisConsumerRunner> _logger;
 
-    public RedisConsumerRunner(IServiceProvider serviceProvider, IQueuing queuing, RedisOptions options, ILogger<RedisConsumerRunner> logger)
+    public RedisConsumerRunner(IServiceProvider serviceProvider, MediatorOptions mediatorOptions, IQueuing queuing, RedisOptions options, ILogger<RedisConsumerRunner> logger)
     {
         _queuing = (RedisQueuing)queuing;
         _redis = _queuing.RedisClient;
         _serviceProvider = serviceProvider;
+        _mediatorOptions = mediatorOptions;
         _options = options;
         _logger = logger;
         _redis.Connected += (sender, args) => _logger.LogTrace("{Log}", args.Pool.StatisticsFullily);
@@ -27,17 +29,17 @@ internal class RedisConsumerRunner : IConsumerRunner
         _redis.Notice += (_, args) => _logger.LogTrace("{Log}", args.Log);
     }
 
-    public async Task InvokeAsync(IEnumerable<ServiceMap> services, CancellationToken cancellationToken = default)
+    public async Task InvokeAsync(CancellationToken cancellationToken = default)
     {
         var tasks = new List<Task>();
         var channels = new List<string>();
 
-        foreach (var service in services)
+        foreach (var service in _mediatorOptions.ServiceMaps)
         {
             var key = KeyHelper.Concat(_options.Prefix,
                                        service.Interface.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) ? _options.GroupName : string.Empty,
                                        service.Service.FullName!);
-            
+
             if (!_redis.Exists(key) || _redis.XInfoGroups(key).All(t => t.name != _options.GroupName)) _redis.XGroupCreate(key, _options.GroupName, _options.GroupNewestId ? "$" : "0", true);
 
             if (!string.IsNullOrWhiteSpace(_options.MachineName) && _redis.XInfoConsumers(key, _options.GroupName).All(t => t.name != _options.MachineName)) _redis.XGroupCreateConsumer(key, _options.GroupName, _options.MachineName);
@@ -148,7 +150,7 @@ internal class RedisConsumerRunner : IConsumerRunner
             var provider = scope.ServiceProvider;
             var dispatcher = provider.GetRequiredService<IDispatcher>();
             var dispatcherInvokeMethodInfo = dispatcher.GetType().GetMethod(Constants.DISPATCHER_INVOKE, BindingFlags.Public | BindingFlags.Instance)!;
-            
+
             var serviceType = (TypeInfo)Type.GetType(stream.Message.ServiceType);
 
             var resultType = serviceType!.ImplementedInterfaces.First(t => t.GetGenericTypeDefinition() == typeof(IRequest<>));

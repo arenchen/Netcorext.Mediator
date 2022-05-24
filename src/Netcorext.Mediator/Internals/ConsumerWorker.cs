@@ -17,7 +17,7 @@ internal class ConsumerWorker : IHostedService, IDisposable
 
     private Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        return _runner.InvokeAsync(_options.ServiceMaps, cancellationToken);
+        return _runner.InvokeAsync(cancellationToken);
     }
 
     public virtual Task StartAsync(CancellationToken cancellationToken)

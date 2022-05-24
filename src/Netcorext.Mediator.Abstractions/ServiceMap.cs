@@ -8,4 +8,5 @@ public sealed class ServiceMap
     public Type Interface { get; set; }
     public Type Implementation { get; set; }
     public ServiceLifetime ServiceLifetime { get; set; }
+    public int ArgumentsCount { get; set; }
 }
