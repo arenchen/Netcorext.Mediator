@@ -129,6 +129,8 @@ internal class RedisConsumerRunner : IConsumerRunner
                 }
                 catch (Exception e)
                 {
+                    _logger.LogError(e, "{E}", e);
+                    
                     message.Error = e.ToString();
                 }
 
