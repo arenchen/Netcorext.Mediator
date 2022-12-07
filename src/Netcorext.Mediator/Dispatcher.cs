@@ -21,9 +21,9 @@ public class Dispatcher : IDispatcher
         _options = options;
     }
 
-    public Task<TResult?> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    public Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
     {
-        return InvokeAsync(request, cancellationToken);
+        return InvokeAsync(request, cancellationToken)!;
     }
 
     public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
@@ -64,7 +64,7 @@ public class Dispatcher : IDispatcher
 
             var result = resultProperty!.GetValue(task);
 
-            return result == null || result?.GetType() == _voidTaskResult ? default : (TResult)result!;
+            return result == null || result.GetType() == _voidTaskResult ? default : (TResult)result;
         }
 
         var pipelineType = typeof(IRequestPipeline<,>).MakeGenericType(request.GetType(), typeof(TResult));

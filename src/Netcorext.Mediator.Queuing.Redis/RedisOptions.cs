@@ -13,21 +13,21 @@ public class RedisOptions
     public const int DEFAULT_STREAM_BLOCK_TIMEOUT = 0;
     public const int DEFAULT_HEALTH_CHECK_INTERVAL = 10 * 1000;
 
-    public string GroupName { get; } = Assembly.GetEntryAssembly()?.GetName().Name;
+    public string GroupName { get; } = Assembly.GetEntryAssembly()?.GetName().Name!;
     public bool GroupNewestId { get; set; }
     public bool ConsumerNewestId { get; set; }
     public string MachineName { get; set; } = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
-    public string ConnectionString { get; set; }
-    public string Prefix { get; set; }
+    public string ConnectionString { get; set; } = null!;
+    public string? Prefix { get; set; }
     public string CommunicationChannel { get; set; } = DEFAULT_COMMUNICATION_CHANNEL;
     public int SlowCommandTimes { get; set; } = DEFAULT_SLOW_COMMAND_TIMES;
     public int? StreamIdleTime { get; set; } = DEFAULT_STREAM_IDLE_TIME;
     public int? StreamBatchSize { get; set; } = DEFAULT_STREAM_BATCH_SIZE;
     public int? StreamBlockTimeout { get; set; } = DEFAULT_STREAM_BLOCK_TIMEOUT;
-    public int? StreamMaxSize { get; set; }
+    public long? StreamMaxSize { get; set; }
     public int? HealthCheckInterval { get; set; } = DEFAULT_HEALTH_CHECK_INTERVAL;
 
-    public JsonSerializerOptions JsonSerializerOptions { get; set; } = new JsonSerializerOptions
+    public JsonSerializerOptions JsonSerializerOptions { get; set; } = new()
                                                                        {
                                                                            PropertyNameCaseInsensitive = true,
                                                                            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

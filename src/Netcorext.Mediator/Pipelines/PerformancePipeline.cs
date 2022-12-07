@@ -31,7 +31,7 @@ public class PerformancePipeline : IPipeline
             stopwatch.Stop();
 
             if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
-                _logger.LogWarning($"'{type.FullName}' processing too slow, elapsed: {stopwatch.Elapsed}");
+                _logger.LogWarning("'{TypeFullName}' processing too slow, elapsed: {StopwatchElapsed}", type.FullName, stopwatch.Elapsed);
         }
     }
 }

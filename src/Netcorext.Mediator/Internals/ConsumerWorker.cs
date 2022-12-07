@@ -4,14 +4,12 @@ namespace Netcorext.Mediator.Internals;
 
 internal class ConsumerWorker : IHostedService, IDisposable
 {
-    private readonly MediatorOptions _options;
     private readonly IConsumerRunner _runner;
-    private Task _executingTask = null!;
-    private CancellationTokenSource _cancellationToken = new CancellationTokenSource();
+    private Task? _executingTask;
+    private CancellationTokenSource _cancellationToken = new ();
 
-    public ConsumerWorker(MediatorOptions options, IConsumerRunner runner)
+    public ConsumerWorker(IConsumerRunner runner)
     {
-        _options = options;
         _runner = runner;
     }
 

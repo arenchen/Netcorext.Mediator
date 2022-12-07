@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text.Json;
 using FreeRedis;
 using Microsoft.Extensions.Logging;
 using Netcorext.Mediator.Queuing.Redis.Extensions;
@@ -11,9 +10,8 @@ internal class RedisQueuing : IQueuing, IDisposable
 {
     private readonly RedisOptions _options;
     private readonly ILogger<RedisQueuing> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _communicationChannel;
-    private List<IDisposable> _subscribes = new List<IDisposable>();
+    private readonly List<IDisposable> _subscribes = new();
 
     public RedisQueuing(RedisClient redis, RedisOptions options, ILogger<RedisQueuing> logger)
     {
@@ -54,7 +52,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                             {
                                 var fieldValues = message.ToDictionary(_options);
 
-                                var streamId = RedisClient.XAdd(key, 0L, "*", fieldValues);
+                                var streamId = RedisClient.XAdd(key, _options.StreamMaxSize ?? 0L, "*", fieldValues);
 
                                 RedisClient.Publish(_communicationChannel, key);
 
@@ -65,7 +63,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                                 stopwatch.Stop();
 
                                 if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
-                                    _logger.LogWarning($"'{nameof(PublishAsync)}' processing too slow, elapsed: {stopwatch.Elapsed}");
+                                    _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(PublishAsync), stopwatch.Elapsed);
                             }
                         }, cancellationToken);
     }
@@ -93,7 +91,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                                 stopwatch.Stop();
 
                                 if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
-                                    _logger.LogWarning($"'{nameof(SubscribeAsync)}' processing too slow, elapsed: {stopwatch.Elapsed}");
+                                    _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(SubscribeAsync), stopwatch.Elapsed);
                             }
                         }, cancellationToken);
     }

@@ -12,16 +12,17 @@ internal static class KeyHelper
         return RegexKeyFormat.Replace(source, "_").ToLower();
     }
 
-    public static string GetStreamKey(string prefix, string payloadType)
+    public static string GetStreamKey(string? prefix, string payloadType)
     {
         var type = RegexType.Replace(payloadType, "");
 
         return Concat(prefix, type.FormatKey());
     }
 
-    public static string Concat(params string[] keys)
+    public static string Concat(params string?[] keys)
     {
         return keys.Where(t => !string.IsNullOrWhiteSpace(t))
+                   .Select(t => t!)
                    .Aggregate((s, s1) => s + ":" + s1)
                    .ToLower();
     }

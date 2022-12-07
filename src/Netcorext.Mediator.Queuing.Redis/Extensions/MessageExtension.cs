@@ -25,7 +25,7 @@ internal static class MessageExtension
 
                     break;
                 case Type t:
-                    values.Add(p.Name, t.AssemblyQualifiedName);
+                    values.Add(p.Name, t.AssemblyQualifiedName!);
 
                     break;
                 case DateTimeOffset dt:
@@ -55,7 +55,7 @@ internal static class MessageExtension
 
         for (var i = 0; i < source.fieldValues.Length; i += 2)
         {
-            var name = source.fieldValues[i].ToString();
+            var name = source.fieldValues[i].ToString()!;
             var value = source.fieldValues[i + 1].ToString();
 
             var pi = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -81,6 +81,13 @@ internal static class MessageExtension
                     object? payload;
                     pt = Type.GetType(message.PayloadType);
 
+                    if (value == null)
+                    {
+                        pi.SetValue(message, null);
+
+                        break;
+                    }
+
                     if (pt!.IsValueType || pt == typeof(string))
                     {
                         payload = value;
@@ -88,8 +95,8 @@ internal static class MessageExtension
                     else
                     {
                         payload = JsonSerializer.Deserialize(value, pt, options.JsonSerializerOptions);
-                    }
-
+                    } 
+                    
                     pi.SetValue(message, payload);
 
                     break;
@@ -104,10 +111,16 @@ internal static class MessageExtension
                     }
 
                     if (message.RefererType == null) break;
-
-                    object? referer;
+                    
                     pt = Type.GetType(message.RefererType);
 
+                    if (value == null)
+                    {
+                        pi.SetValue(message, null);
+
+                        break;
+                    }
+                    
                     if (pt!.IsValueType || pt == typeof(string))
                     {
                         payload = value;
@@ -121,8 +134,15 @@ internal static class MessageExtension
 
                     break;
                 case nameof(Message.CreationDate):
-                    pi.SetValue(message, DateTimeOffset.Parse(value));
-
+                    if (value == null)
+                    {
+                        pi.SetValue(message, null);
+                    }
+                    else
+                    {
+                        pi.SetValue(message, DateTimeOffset.Parse(value));    
+                    }
+                    
                     break;
                 default:
                     pi.SetValue(message, value);

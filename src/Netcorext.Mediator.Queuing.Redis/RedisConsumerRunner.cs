@@ -73,7 +73,7 @@ internal class RedisConsumerRunner : IConsumerRunner
             channels.Add(key);
         }
 
-        tasks.Add(_queuing.SubscribeAsync(channels.ToArray(), (s, o) => ReadStreamAsync(o.ToString(), ">", cancellationToken), cancellationToken));
+        tasks.Add(_queuing.SubscribeAsync(channels.ToArray(), (s, o) => ReadStreamAsync(o.ToString()!, ">", cancellationToken), cancellationToken));
 
         await Task.WhenAll(tasks.ToArray());
     }
@@ -124,7 +124,7 @@ internal class RedisConsumerRunner : IConsumerRunner
 
                     if (entry.Message.Referer != null) return;
 
-                    message.PayloadType = result.GetType().AssemblyQualifiedName;
+                    message.PayloadType = result?.GetType().AssemblyQualifiedName;
                     message.Payload = result;
                 }
                 catch (Exception e)
@@ -136,7 +136,7 @@ internal class RedisConsumerRunner : IConsumerRunner
 
                 message.CreationDate = DateTimeOffset.UtcNow;
 
-                var streamKey = KeyHelper.GetStreamKey(KeyHelper.Concat(_options.Prefix, entry.Message.GroupName), entry.Message.ServiceType);
+                var streamKey = KeyHelper.GetStreamKey(KeyHelper.Concat(_options.Prefix, entry.Message.GroupName), entry.Message.ServiceType!);
 
                 await _queuing.PublishAsync(streamKey, message, cancellationToken);
             }
@@ -153,7 +153,9 @@ internal class RedisConsumerRunner : IConsumerRunner
             var dispatcher = provider.GetRequiredService<IDispatcher>();
             var dispatcherInvokeMethodInfo = dispatcher.GetType().GetMethod(Constants.DISPATCHER_INVOKE, BindingFlags.Public | BindingFlags.Instance)!;
 
-            var serviceType = (TypeInfo)Type.GetType(stream.Message.ServiceType);
+            if (stream.Message == null) return null;
+            
+            var serviceType = (TypeInfo)Type.GetType(stream.Message.ServiceType!)!;
 
             var resultType = serviceType!.ImplementedInterfaces.First(t => t.GetGenericTypeDefinition() == typeof(IRequest<>));
 

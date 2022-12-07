@@ -18,19 +18,7 @@ public static class ServiceHandlerHelper
 
             if (ps.Length != parameters.Length) continue;
 
-            var isEq = true;
-
-            for (var i = 0; i < ps.Length; i++)
-            {
-                if (parameters[i] == null
-                 || ps[i].ParameterType.IsInstanceOfType(parameters[i])
-                 || ps[i].ParameterType == parameters[i]?.GetType())
-                    continue;
-
-                isEq = false;
-
-                break;
-            }
+            var isEq = !ps.Where((t, i) => parameters[i] != null && !t.ParameterType.IsInstanceOfType(parameters[i]) && t.ParameterType != parameters[i]?.GetType()).Any();
 
             if (!isEq) continue;
 
