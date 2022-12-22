@@ -1,29 +1,32 @@
 ﻿using System.Diagnostics;
 using FreeRedis;
 using Microsoft.Extensions.Logging;
-using Netcorext.Mediator.Queuing.Redis.Extensions;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
+using Netcorext.Serialization;
 
 namespace Netcorext.Mediator.Queuing.Redis;
 
 internal class RedisQueuing : IQueuing, IDisposable
 {
+    private IDisposable? _subscriber;
     private readonly RedisOptions _options;
+    private readonly ISerializer _serializer;
     private readonly ILogger<RedisQueuing> _logger;
     private readonly string _communicationChannel;
-    private readonly List<IDisposable> _subscribes = new();
 
-    public RedisQueuing(RedisClient redis, RedisOptions options, ILogger<RedisQueuing> logger)
+    public RedisQueuing(RedisClient redis, RedisOptions options, ISerializer serializer, ILogger<RedisQueuing> logger)
     {
-        RedisClient = redis;
+        Redis = redis;
+
         _options = options;
+        _serializer = serializer;
         _logger = logger;
         _communicationChannel = KeyHelper.Concat(_options.Prefix, _options.CommunicationChannel);
     }
 
-    internal RedisClient RedisClient { get; }
+    internal RedisClient Redis { get; }
 
-    public Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
     {
         var streamKey = KeyHelper.GetStreamKey(_options.Prefix, request.GetType().AssemblyQualifiedName!);
 
@@ -31,79 +34,80 @@ internal class RedisQueuing : IQueuing, IDisposable
                       {
                           ServiceType = request.GetType().AssemblyQualifiedName,
                           PayloadType = request.GetType().AssemblyQualifiedName,
-                          Payload = request,
+                          Payload = await _serializer.SerializeToUtf8BytesAsync(request, cancellationToken),
                           GroupName = _options.GroupName,
                           MachineName = _options.MachineName,
                           CreationDate = DateTimeOffset.UtcNow
                       };
 
-        return PublishAsync(streamKey, message, cancellationToken);
+        return await PublishAsync(streamKey, message, cancellationToken);
     }
 
-    internal Task<string> PublishAsync(string key, Message message, CancellationToken cancellationToken = default)
+    internal async Task<string> PublishAsync(string key, Message message, CancellationToken cancellationToken = default)
     {
-        return Task.Run(() =>
-                        {
-                            var stopwatch = new Stopwatch();
+        var stopwatch = new Stopwatch();
 
-                            stopwatch.Start();
+        stopwatch.Start();
 
-                            try
-                            {
-                                var fieldValues = message.ToDictionary(_options);
+        try
+        {
+            var content = await _serializer.SerializeToUtf8BytesAsync(message, cancellationToken);
 
-                                var streamId = RedisClient.XAdd(key, _options.StreamMaxSize ?? 0L, "*", fieldValues);
+            if (content == null) throw new ArgumentNullException(nameof(content));
 
-                                RedisClient.Publish(_communicationChannel, key);
+            var values = new Dictionary<string, object>
+                         {
+                             { nameof(StreamData.Key), key },
+                             { nameof(StreamData.Timestamp), DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
+                             { nameof(StreamData.Data), content }
+                         };
 
-                                return streamId;
-                            }
-                            finally
-                            {
-                                stopwatch.Stop();
+            var streamId = await Redis.XAddAsync(key, _options.StreamMaxSize ?? 0L, "*", values);
 
-                                if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
-                                    _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(PublishAsync), stopwatch.Elapsed);
-                            }
-                        }, cancellationToken);
+            await Redis.PublishAsync(_communicationChannel, key);
+
+            return streamId;
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
+                _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(PublishAsync), stopwatch.Elapsed);
+        }
     }
 
     public Task SubscribeAsync(string[] channels, Action<string, object> handler, CancellationToken cancellationToken = default)
     {
-        return Task.Run(() =>
-                        {
-                            var stopwatch = new Stopwatch();
+        var stopwatch = new Stopwatch();
 
-                            stopwatch.Start();
+        stopwatch.Start();
 
-                            try
-                            {
-                                _subscribes.Add(RedisClient.Subscribe(_communicationChannel, (c, s) =>
-                                                                                             {
-                                                                                                 if (channels.Any(t => t.Equals(s.ToString(), StringComparison.OrdinalIgnoreCase)))
-                                                                                                 {
-                                                                                                     handler.Invoke(c, s);
-                                                                                                 }
-                                                                                             }));
-                            }
-                            finally
-                            {
-                                stopwatch.Stop();
+        try
+        {
+            _subscriber?.Dispose();
 
-                                if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
-                                    _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(SubscribeAsync), stopwatch.Elapsed);
-                            }
-                        }, cancellationToken);
+            _subscriber = Redis.Subscribe(_communicationChannel, (c, m) =>
+                                                                 {
+                                                                     if (channels.Any(t => t == m.ToString()))
+                                                                         handler(c, m);
+                                                                 });
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
+                _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(SubscribeAsync), stopwatch.Elapsed);
+        }
+
+        return Task.CompletedTask;
     }
 
     public void Dispose()
     {
-        foreach (var disposable in _subscribes)
-        {
-            disposable.Dispose();
-        }
+        _subscriber?.Dispose();
 
-        _subscribes.Clear();
-        RedisClient?.Dispose();
+        Redis.Dispose();
     }
 }

@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="10.4" />
   </ItemGroup>
-
+  
   <ItemGroup>
     <ProjectReference Include="../Netcorext.Mediator.Abstractions/Netcorext.Mediator.Abstractions.csproj" />
   </ItemGroup>
