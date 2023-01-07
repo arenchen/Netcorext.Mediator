@@ -76,7 +76,7 @@ internal class RedisConsumerRunner : IConsumerRunner
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "{Message}", e);
+            _logger.LogError(e, "{Message}", e.Message);
 
             await InvokeAsync(cancellationToken);
         }
@@ -141,7 +141,7 @@ internal class RedisConsumerRunner : IConsumerRunner
                         }
                         catch (Exception e)
                         {
-                            _logger.LogError(e, "{Message}", e);
+                            _logger.LogError(e, "{Message}", e.Message);
 
                             message.Error = e.ToString();
                         }
@@ -152,9 +152,9 @@ internal class RedisConsumerRunner : IConsumerRunner
 
                         await _queuing.PublishAsync(streamKey, message, cancellationToken);
                     }
-                    catch
+                    catch (Exception e)
                     {
-                        // ignored
+                        _logger.LogError(e, "{Message}", e.Message);
                     }
                 }
             }
@@ -163,9 +163,9 @@ internal class RedisConsumerRunner : IConsumerRunner
         }
         catch (Exception e)
         {
-            ReadStreamDictionary.TryRemove(key, out _);
+            _logger.LogError(e, "{Message}", e.Message);
 
-            _logger.LogError(e, "{Message}", e);
+            ReadStreamDictionary.TryRemove(key, out _);
         }
     }
 
@@ -277,7 +277,7 @@ internal class RedisConsumerRunner : IConsumerRunner
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "{Message}", e);
+                        _logger.LogError(e, "{Message}", e.Message);
 
                         message.Error = e.ToString();
                     }
@@ -288,9 +288,9 @@ internal class RedisConsumerRunner : IConsumerRunner
 
                     await _queuing.PublishAsync(publishKey, message, cancellationToken);
                 }
-                catch
+                catch (Exception e)
                 {
-                    // ignored
+                    _logger.LogError(e, "{Message}", e.Message);
                 }
             }
         }
