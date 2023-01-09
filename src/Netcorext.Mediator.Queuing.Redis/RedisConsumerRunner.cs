@@ -1,9 +1,9 @@
-using System.Collections.Concurrent;
 using System.Reflection;
 using FreeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Netcorext.Extensions.Linq;
+using Netcorext.Extensions.Threading;
 using Netcorext.Mediator.Queuing.Redis.Extensions;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
 using Netcorext.Serialization;
@@ -12,6 +12,9 @@ namespace Netcorext.Mediator.Queuing.Redis;
 
 internal class RedisConsumerRunner : IConsumerRunner
 {
+    private static KeyCountLocker _locker = null!;
+    private static bool _isDetecting;
+    
     private readonly RedisQueuing _queuing;
     private readonly RedisClient _redis;
     private readonly IServiceProvider _serviceProvider;
@@ -19,11 +22,13 @@ internal class RedisConsumerRunner : IConsumerRunner
     private readonly RedisOptions _options;
     private readonly ISerializer _serializer;
     private readonly ILogger<RedisConsumerRunner> _logger;
-    private static readonly ConcurrentDictionary<string, string> ReadStreamDictionary = new();
-    private static bool _isDetecting;
 
     public RedisConsumerRunner(IServiceProvider serviceProvider, MediatorOptions mediatorOptions, IQueuing queuing, RedisOptions options, ISerializer serializer, ILogger<RedisConsumerRunner> logger)
     {
+        _locker = options.WorkerTaskCount.HasValue
+                     ? new KeyCountLocker(maximum: options.WorkerTaskCount.Value)
+                     : new KeyCountLocker();
+
         _queuing = (RedisQueuing)queuing;
         _redis = _queuing.Redis;
         _serviceProvider = serviceProvider;
@@ -86,7 +91,7 @@ internal class RedisConsumerRunner : IConsumerRunner
     {
         try
         {
-            if (!ReadStreamDictionary.TryAdd(key, ">")) return;
+            if (!await _locker.IncrementAsync(key, cancellationToken)) return;
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -159,13 +164,13 @@ internal class RedisConsumerRunner : IConsumerRunner
                 }
             }
 
-            ReadStreamDictionary.TryRemove(key, out _);
+            await _locker.DecrementAsync(key, cancellationToken);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "{Message}", e.Message);
 
-            ReadStreamDictionary.TryRemove(key, out _);
+            await _locker.DecrementAsync(key, cancellationToken);
         }
     }
 
@@ -186,7 +191,7 @@ internal class RedisConsumerRunner : IConsumerRunner
 
             var serviceType = (TypeInfo)Type.GetType(rawMessage.ServiceType!)!;
 
-            var resultType = serviceType!.ImplementedInterfaces.First(t => t.GetGenericTypeDefinition() == typeof(IRequest<>));
+            var resultType = serviceType.ImplementedInterfaces.First(t => t.GetGenericTypeDefinition() == typeof(IRequest<>));
 
             var proxyInvokeAsync = dispatcherInvokeMethodInfo.MakeGenericMethod(resultType.GenericTypeArguments[0]);
 

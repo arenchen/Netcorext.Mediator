@@ -9,7 +9,9 @@ public class RedisOptions
     public const int DEFAULT_STREAM_IDLE_TIME = 5 * 1000;
     public const int DEFAULT_STREAM_BATCH_SIZE = 50;
     public const int DEFAULT_HEALTH_CHECK_INTERVAL = 30 * 1000;
+    public const int DEFAULT_WORKER_TASK_COUNT = 5;
 
+    public int? WorkerTaskCount { get; set; } = DEFAULT_WORKER_TASK_COUNT;
     public string GroupName { get; } = Assembly.GetEntryAssembly()?.GetName().Name!;
     public bool GroupNewestId { get; set; }
     public string MachineName { get; set; } = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
