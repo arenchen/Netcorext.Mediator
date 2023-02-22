@@ -16,7 +16,7 @@ public class RedisOptions
     public bool GroupNewestId { get; set; }
     public string MachineName { get; set; } = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
     public string ConnectionString { get; set; } = null!;
-    public string? Prefix { get; set; }
+    public string? Prefix { get; set; } = "event-bus";
     public string CommunicationChannel { get; set; } = DEFAULT_COMMUNICATION_CHANNEL;
     public int SlowCommandTimes { get; set; } = DEFAULT_SLOW_COMMAND_TIMES;
     public int? StreamIdleTime { get; set; } = DEFAULT_STREAM_IDLE_TIME;
