@@ -26,8 +26,6 @@ public static class ServiceCollectionExtension
 
         builder.Services.AddTransient<IQueuing, DefaultQueuing>();
         builder.Services.AddTransient<IDispatcher, Dispatcher>();
-        builder.Services.AddTransient<IConsumerRunner, DefaultConsumerRunner>();
-        builder.Services.AddHostedService<ConsumerWorker>();
 
         return builder.AddServices(serviceLifetime, types);
     }

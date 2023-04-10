@@ -4,6 +4,7 @@ using Netcorext.Extensions.Redis.Utilities;
 using Netcorext.Mediator;
 using Netcorext.Mediator.Queuing;
 using Netcorext.Mediator.Queuing.Redis;
+using Netcorext.Mediator.Queuing.Redis.Runners;
 using Netcorext.Serialization;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -31,23 +32,11 @@ public static class ServiceCollectionExtension
                                                            return options;
                                                        });
 
-        builder.Services.TryAddSingleton<RedisClient>(provider =>
-                                                      {
-                                                          var options = provider.GetRequiredService<RedisOptions>();
-
-                                                          var serializer = provider.GetRequiredService<ISerializer>();
-
-                                                          return new RedisClientConnection<RedisClient>(() => new RedisClient(options.ConnectionString)
-                                                                                                              {
-                                                                                                                  Serialize = serializer.Serialize,
-                                                                                                                  Deserialize = serializer.Deserialize,
-                                                                                                                  DeserializeRaw = serializer.Deserialize
-                                                                                                              }).Client;
-                                                      });
-
         builder.Services.AddOrReplace<IQueuing, RedisQueuing>(ServiceLifetime.Singleton);
 
-        builder.Services.AddOrReplace<IConsumerRunner, RedisConsumerRunner>(ServiceLifetime.Singleton);
+        builder.Services.AddWorkerRunner<ConsumerWorker, RedisConsumerRunner>();
+        builder.Services.AddWorkerRunner<ConsumerWorker, PendingStreamRunner>();
+        builder.Services.AddHostedService<ConsumerWorker>();
 
         return builder;
     }

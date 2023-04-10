@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using FreeRedis;
 using Microsoft.Extensions.Logging;
+using Netcorext.Extensions.Redis.Utilities;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
 using Netcorext.Serialization;
 
@@ -9,34 +10,40 @@ namespace Netcorext.Mediator.Queuing.Redis;
 internal class RedisQueuing : IQueuing, IDisposable
 {
     private IDisposable? _subscriber;
-    private readonly RedisOptions _options;
-    private readonly ISerializer _serializer;
     private readonly ILogger<RedisQueuing> _logger;
     private readonly string _communicationChannel;
 
-    public RedisQueuing(RedisClient redis, RedisOptions options, ISerializer serializer, ILogger<RedisQueuing> logger)
+    public RedisQueuing(RedisOptions options, ISerializer serializer, ILogger<RedisQueuing> logger)
     {
-        Redis = redis;
-
-        _options = options;
-        _serializer = serializer;
         _logger = logger;
-        _communicationChannel = KeyHelper.Concat(_options.Prefix, _options.CommunicationChannel);
+        
+        Options = options;
+        Serializer = serializer;
+        Redis = new RedisClientConnection<RedisClient>(() => new RedisClient(options.ConnectionString)
+                                                             {
+                                                                 Serialize = serializer.Serialize,
+                                                                 Deserialize = serializer.Deserialize,
+                                                                 DeserializeRaw = serializer.Deserialize
+                                                             }).Client;
+        
+        _communicationChannel = KeyHelper.Concat(Options.Prefix, Options.CommunicationChannel);
     }
 
     internal RedisClient Redis { get; }
+    internal ISerializer Serializer { get; }
+    internal RedisOptions Options { get; }
 
     public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
     {
-        var streamKey = KeyHelper.GetStreamKey(_options.Prefix, request.GetType().AssemblyQualifiedName!);
+        var streamKey = KeyHelper.GetStreamKey(Options.Prefix, request.GetType().AssemblyQualifiedName!);
 
         var message = new Message
                       {
                           ServiceType = request.GetType().AssemblyQualifiedName,
                           PayloadType = request.GetType().AssemblyQualifiedName,
-                          Payload = await _serializer.SerializeToUtf8BytesAsync(request, cancellationToken),
-                          GroupName = _options.GroupName,
-                          MachineName = _options.MachineName,
+                          Payload = await Serializer.SerializeToUtf8BytesAsync(request, cancellationToken),
+                          GroupName = Options.GroupName,
+                          MachineName = Options.MachineName,
                           CreationDate = DateTimeOffset.UtcNow
                       };
 
@@ -51,7 +58,7 @@ internal class RedisQueuing : IQueuing, IDisposable
 
         try
         {
-            var content = await _serializer.SerializeToUtf8BytesAsync(message, cancellationToken);
+            var content = await Serializer.SerializeToUtf8BytesAsync(message, cancellationToken);
 
             if (content == null) throw new ArgumentNullException(nameof(content));
 
@@ -62,7 +69,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                              { nameof(StreamData.Data), content }
                          };
 
-            var streamId = await Redis.XAddAsync(key, _options.StreamMaxSize ?? 0L, "*", values);
+            var streamId = await Redis.XAddAsync(key, Options.StreamMaxSize ?? 0L, "*", values);
 
             await Redis.PublishAsync(_communicationChannel, key);
 
@@ -72,7 +79,7 @@ internal class RedisQueuing : IQueuing, IDisposable
         {
             stopwatch.Stop();
 
-            if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
+            if (stopwatch.ElapsedMilliseconds > Options.SlowCommandTimes)
                 _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(PublishAsync), stopwatch.Elapsed);
         }
     }
@@ -97,7 +104,7 @@ internal class RedisQueuing : IQueuing, IDisposable
         {
             stopwatch.Stop();
 
-            if (stopwatch.ElapsedMilliseconds > _options.SlowCommandTimes)
+            if (stopwatch.ElapsedMilliseconds > Options.SlowCommandTimes)
                 _logger.LogWarning("'{Name}' processing too slow, elapsed: {StopwatchElapsed}", nameof(SubscribeAsync), stopwatch.Elapsed);
         }
 
