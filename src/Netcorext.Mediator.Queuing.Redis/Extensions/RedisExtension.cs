@@ -8,7 +8,7 @@ internal static class RedisExtension
     public static async Task<IEnumerable<string>> RegisterConsumerAsync(this RedisClient redis, IEnumerable<ServiceMap> serviceMaps, string? prefix, string groupName, string machineName, bool groupNewestId)
     {
         var keys = new List<string>();
-            
+
         foreach (var service in serviceMaps)
         {
             var key = KeyHelper.Concat(prefix,

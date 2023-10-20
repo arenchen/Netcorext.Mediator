@@ -42,20 +42,14 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
 
             _isDetecting = true;
 
+            await _redis.RegisterConsumerAsync(_mediatorOptions.ServiceMaps, _options.Prefix, _options.GroupName, _options.MachineName, _options.GroupNewestId);
+
             try
             {
-                var tasks = new List<Task>();
-
-                foreach (var service in _mediatorOptions.ServiceMaps)
-                {
-                    var key = KeyHelper.Concat(_options.Prefix,
-                                               service.Interface.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) ? _options.GroupName : string.Empty,
-                                               service.Service.FullName!);
-
-                    tasks.Add(ClaimPendingStreamAsync(key, cancellationToken));
-                }
-
-                await Task.WhenAll(tasks.ToArray());
+                await Task.WhenAll(_mediatorOptions.ServiceMaps
+                                                   .Select(service => KeyHelper.Concat(_options.Prefix, service.Interface.GetGenericTypeDefinition() == typeof(IResponseHandler<,>) ? _options.GroupName : string.Empty, service.Service.FullName!))
+                                                   .Select(key => ClaimPendingStreamAsync(key, cancellationToken))
+                                                   .ToArray());
             }
             finally
             {
