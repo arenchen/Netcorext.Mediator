@@ -57,6 +57,22 @@ public static class ServiceCollectionExtension
         return builder;
     }
 
+    public static MediatorBuilder AddLoggingPipeline(this MediatorBuilder builder, Action<IServiceProvider, LoggingOptions>? configure = default)
+    {
+        builder.Services.TryAddSingleton(provider =>
+                                         {
+                                             var opt = new LoggingOptions();
+
+                                             configure?.Invoke(provider, opt);
+
+                                             return opt;
+                                         });
+
+        builder.AddPipeline<LoggingPipeline>();
+
+        return builder;
+    }
+
     public static MediatorBuilder AddPerformancePipeline(this MediatorBuilder builder, Action<IServiceProvider, PerformanceOptions>? configure = default)
     {
         builder.Services.TryAddSingleton(provider =>
