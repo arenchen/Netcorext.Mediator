@@ -1,11 +1,8 @@
-using FreeRedis;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Netcorext.Extensions.Redis.Utilities;
 using Netcorext.Mediator;
 using Netcorext.Mediator.Queuing;
 using Netcorext.Mediator.Queuing.Redis;
 using Netcorext.Mediator.Queuing.Redis.Runners;
-using Netcorext.Serialization;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

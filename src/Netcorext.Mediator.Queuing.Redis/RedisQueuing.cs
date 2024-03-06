@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
+using System.Security.Claims;
 using FreeRedis;
 using Microsoft.Extensions.Logging;
+using Netcorext.Contracts;
 using Netcorext.Extensions.Redis.Utilities;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
 using Netcorext.Serialization;
@@ -10,13 +12,15 @@ namespace Netcorext.Mediator.Queuing.Redis;
 internal class RedisQueuing : IQueuing, IDisposable
 {
     private IDisposable? _subscriber;
+    private readonly IContextState _contextState;
     private readonly ILogger<RedisQueuing> _logger;
     private readonly string _communicationChannel;
 
-    public RedisQueuing(RedisOptions options, ISerializer serializer, ILogger<RedisQueuing> logger)
+    public RedisQueuing(RedisOptions options, IContextState contextState, ISerializer serializer, ILogger<RedisQueuing> logger)
     {
+        _contextState = contextState;
         _logger = logger;
-        
+
         Options = options;
         Serializer = serializer;
         Redis = new RedisClientConnection<RedisClient>(() => new RedisClient(options.ConnectionString)
@@ -25,7 +29,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                                                                  Deserialize = serializer.Deserialize,
                                                                  DeserializeRaw = serializer.Deserialize
                                                              }).Client;
-        
+
         _communicationChannel = KeyHelper.Concat(Options.Prefix, Options.CommunicationChannel);
     }
 
@@ -44,7 +48,9 @@ internal class RedisQueuing : IQueuing, IDisposable
                           Payload = await Serializer.SerializeToUtf8BytesAsync(request, cancellationToken),
                           GroupName = Options.GroupName,
                           MachineName = Options.MachineName,
-                          CreationDate = DateTimeOffset.UtcNow
+                          CreationDate = DateTimeOffset.UtcNow,
+                          Authorization = _contextState.User?.FindFirst(ClaimTypes.UserData).Value,
+                          RequestId = _contextState.RequestId
                       };
 
         return await PublishAsync(streamKey, message, cancellationToken);

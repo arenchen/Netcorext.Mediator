@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 namespace Netcorext.Mediator.Queuing;
 
 public sealed class Message
@@ -11,4 +13,6 @@ public sealed class Message
     public string? GroupName { get; set; }
     public string? MachineName { get; set; }
     public DateTimeOffset CreationDate { get; set; }
+    public string? Authorization { get; set; }
+    public string? RequestId { get; set; }
 }

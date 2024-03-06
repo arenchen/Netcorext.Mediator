@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 
 namespace Netcorext.Mediator.Pipelines;
 

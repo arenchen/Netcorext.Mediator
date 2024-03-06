@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.*" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -13,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Netcorext.Contracts.Abstractions" Version="1.0.1-dev.*" />
     <PackageReference Include="Netcorext.Extensions.Linq" Version="1.0.1-dev.*" />
     <PackageReference Include="Netcorext.Extensions.Redis" Version="1.0.0-dev.*" />
     <PackageReference Include="Netcorext.Extensions.Threading.Locker" Version="1.0.0-dev.*" />

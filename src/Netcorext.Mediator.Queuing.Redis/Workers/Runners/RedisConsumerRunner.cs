@@ -85,7 +85,9 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
                                                 RefererType = rawMessage.PayloadType,
                                                 Referer = rawMessage.Payload,
                                                 GroupName = _options.GroupName,
-                                                MachineName = _options.MachineName
+                                                MachineName = _options.MachineName,
+                                                Authorization = rawMessage.Authorization,
+                                                RequestId = rawMessage.RequestId
                                             }
                                           : new Message
                                             {
@@ -93,7 +95,9 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
                                                 RefererType = rawMessage.RefererType,
                                                 Referer = rawMessage.Referer,
                                                 GroupName = _options.GroupName,
-                                                MachineName = _options.MachineName
+                                                MachineName = _options.MachineName,
+                                                Authorization = rawMessage.Authorization,
+                                                RequestId = rawMessage.RequestId
                                             };
 
                         try

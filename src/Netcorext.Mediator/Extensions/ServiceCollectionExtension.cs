@@ -24,6 +24,7 @@ public static class ServiceCollectionExtension
     {
         var builder = new MediatorBuilder(services, configure);
 
+        builder.Services.AddContextState();
         builder.Services.AddTransient<IQueuing, DefaultQueuing>();
         builder.Services.AddTransient<IDispatcher, Dispatcher>();
 

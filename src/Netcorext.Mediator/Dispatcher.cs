@@ -1,5 +1,4 @@
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
 using Netcorext.Mediator.Pipelines;
 using Netcorext.Mediator.Queuing;
 

@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Netcorext.Mediator.Pipelines;
 
 public class LoggingPipeline : IPipeline
