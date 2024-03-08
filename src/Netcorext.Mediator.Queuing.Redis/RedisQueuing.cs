@@ -49,7 +49,7 @@ internal class RedisQueuing : IQueuing, IDisposable
                           GroupName = Options.GroupName,
                           MachineName = Options.MachineName,
                           CreationDate = DateTimeOffset.UtcNow,
-                          Authorization = _contextState.User?.FindFirst(ClaimTypes.UserData).Value,
+                          Authorization = _contextState.User?.FindFirst(ClaimTypes.UserData)?.Value,
                           RequestId = _contextState.RequestId
                       };
 
