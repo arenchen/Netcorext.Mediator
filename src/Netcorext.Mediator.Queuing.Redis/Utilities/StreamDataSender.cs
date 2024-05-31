@@ -1,11 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Headers;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Netcorext.Contracts;
 using Netcorext.Serialization;
+using Serilog.Context;
 
 namespace Netcorext.Mediator.Queuing.Redis.Utilities;
 
@@ -32,6 +32,8 @@ internal static class StreamDataSender
 
             contextState.User = GetClaimsPrincipal(rawMessage.Authorization);
             contextState.RequestId = rawMessage.RequestId;
+
+            LogContext.PushProperty("XRequestId", rawMessage.RequestId);
 
             var serviceType = (TypeInfo)Type.GetType(rawMessage.ServiceType!)!;
 
