@@ -52,7 +52,11 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
     {
         try
         {
-            if (!await _locker.IncrementAsync(key, cancellationToken)) return;
+            if (!await _locker.IncrementAsync(key, cancellationToken))
+            {
+                _logger.LogWarning("Worker task limit exceeded");
+                return;
+            }
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -140,7 +144,5 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
     }
 
     public void Dispose()
-    {
-        _redis.Dispose();
-    }
+    { }
 }

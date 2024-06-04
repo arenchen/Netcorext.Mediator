@@ -62,7 +62,10 @@ public static class ServiceCollectionExtension
     {
         builder.Services.TryAddSingleton(provider =>
                                          {
-                                             var opt = new LoggingOptions();
+                                             var opt = new LoggingOptions
+                                                       {
+                                                           EnableLog = LoggingOptions.LogMode.Both
+                                                       };
 
                                              configure?.Invoke(provider, opt);
 

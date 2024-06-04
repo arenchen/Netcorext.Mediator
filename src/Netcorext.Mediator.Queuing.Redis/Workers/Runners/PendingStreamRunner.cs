@@ -151,7 +151,5 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
     }
 
     public void Dispose()
-    {
-        _redis.Dispose();
-    }
+    { }
 }

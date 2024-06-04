@@ -4,7 +4,7 @@ using Netcorext.Worker;
 
 namespace Netcorext.Mediator;
 
-internal class ConsumerWorker : BackgroundWorker
+public class ConsumerWorker : BackgroundWorker
 {
     private readonly RedisOptions _options;
     private readonly IEnumerable<IWorkerRunner<ConsumerWorker>> _runners;
