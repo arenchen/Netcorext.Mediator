@@ -33,6 +33,7 @@ public static class ServiceCollectionExtension
 
         builder.Services.AddWorkerRunner<ConsumerWorker, RedisConsumerRunner>();
         builder.Services.AddWorkerRunner<ConsumerWorker, PendingStreamRunner>();
+        builder.Services.AddWorkerRunner<ConsumerWorker, HealthRunner>();
         builder.Services.AddHostedService<ConsumerWorker>();
 
         return builder;
