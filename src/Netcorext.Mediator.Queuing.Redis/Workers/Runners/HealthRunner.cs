@@ -1,6 +1,5 @@
 using FreeRedis;
 using Microsoft.Extensions.Logging;
-using Netcorext.Serialization;
 using Netcorext.Worker;
 
 namespace Netcorext.Mediator.Queuing.Redis.Runners;
