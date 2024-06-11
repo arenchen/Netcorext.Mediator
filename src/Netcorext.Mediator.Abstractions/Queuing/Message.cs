@@ -15,4 +15,5 @@ public sealed class Message
     public DateTimeOffset CreationDate { get; set; }
     public string? Authorization { get; set; }
     public string? RequestId { get; set; }
+    public bool? Respond { get; set; }
 }

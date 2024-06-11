@@ -37,7 +37,7 @@ internal class RedisQueuing : IQueuing, IDisposable
     internal ISerializer Serializer { get; }
     internal RedisOptions Options { get; }
 
-    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, bool respond = false,CancellationToken cancellationToken = default)
     {
         var streamKey = KeyHelper.GetStreamKey(Options.Prefix, request.GetType().AssemblyQualifiedName!);
 
@@ -50,7 +50,8 @@ internal class RedisQueuing : IQueuing, IDisposable
                           MachineName = Options.MachineName,
                           CreationDate = DateTimeOffset.UtcNow,
                           Authorization = _contextState.User?.FindFirst(ClaimTypes.UserData)?.Value,
-                          RequestId = _contextState.RequestId
+                          RequestId = _contextState.RequestId,
+                          Respond = respond
                       };
 
         return await PublishAsync(streamKey, message, cancellationToken);

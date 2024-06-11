@@ -25,11 +25,11 @@ public class Dispatcher : IDispatcher
         return InvokeAsync(request, cancellationToken)!;
     }
 
-    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, bool respond = false, CancellationToken cancellationToken = default)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
 
-        return await _queuing.PublishAsync(request, cancellationToken);
+        return await _queuing.PublishAsync(request, respond, cancellationToken);
     }
 
     public async Task<TResult?> InvokeAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default, params object?[]? parameters)

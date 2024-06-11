@@ -106,7 +106,7 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
                         {
                             var result = await StreamDataSender.SendAsync(_serviceProvider, _queuing, entry, cancellationToken);
 
-                            if (rawMessage.Referer != null) continue;
+                            if (!rawMessage.Respond.HasValue || !rawMessage.Respond.Value || rawMessage.Referer != null) continue;
 
                             message.PayloadType = result?.GetType().AssemblyQualifiedName;
                             message.Payload = await _serializer.SerializeToUtf8BytesAsync(result, cancellationToken);
