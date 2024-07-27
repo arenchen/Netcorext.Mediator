@@ -37,6 +37,11 @@ internal class RedisQueuing : IQueuing, IDisposable
     internal ISerializer Serializer { get; }
     internal RedisOptions Options { get; }
 
+    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    {
+        return await PublishAsync(request, false, cancellationToken);
+    }
+
     public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, bool respond = false,CancellationToken cancellationToken = default)
     {
         var streamKey = KeyHelper.GetStreamKey(Options.Prefix, request.GetType().AssemblyQualifiedName!);

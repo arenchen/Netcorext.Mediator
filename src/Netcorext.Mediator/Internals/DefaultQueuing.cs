@@ -4,6 +4,11 @@ namespace Netcorext.Mediator.Internals;
 
 internal class DefaultQueuing : IQueuing
 {
+    public Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task<string> PublishAsync<TResult>(IRequest<TResult> request, bool respond = false, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();

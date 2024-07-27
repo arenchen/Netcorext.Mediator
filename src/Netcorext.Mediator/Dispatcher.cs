@@ -25,6 +25,11 @@ public class Dispatcher : IDispatcher
         return InvokeAsync(request, cancellationToken)!;
     }
 
+    public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
+    {
+        return await PublishAsync(request, false, cancellationToken);
+    }
+
     public async Task<string> PublishAsync<TResult>(IRequest<TResult> request, bool respond = false, CancellationToken cancellationToken = default)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
