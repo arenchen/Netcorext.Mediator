@@ -11,8 +11,7 @@ namespace Netcorext.Mediator.Queuing.Redis.Runners;
 
 internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
 {
-    private static KeyCountLocker _locker = null!;
-
+    private readonly KeyLocker _locker;
     private readonly RedisQueuing _queuing;
     private readonly RedisClient _redis;
     private readonly IServiceProvider _serviceProvider;
@@ -23,7 +22,7 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
 
     public RedisConsumerRunner(IServiceProvider serviceProvider, MediatorOptions mediatorOptions, IQueuing queuing, RedisOptions options, ISerializer serializer, ILogger<RedisConsumerRunner> logger)
     {
-        _locker = new KeyCountLocker(maximum: options.WorkerTaskLimit, logger: logger);
+        _locker = new KeyLocker(logger, maxConcurrent: options.WorkerTaskLimit ?? RedisOptions.DEFAULT_WORKER_TASK_LIMIT);
 
         _queuing = (RedisQueuing)queuing;
         _redis = _queuing.Redis;
@@ -50,11 +49,7 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
     {
         try
         {
-            if (!await _locker.IncrementAsync(key, cancellationToken))
-            {
-                _logger.LogWarning("Worker task limit exceeded");
-                return;
-            }
+            await _locker.WaitAsync(key);
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -131,13 +126,13 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
                 }
             }
 
-            await _locker.DecrementAsync(key, cancellationToken);
+            _locker.Release(key);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "{Message}", e.Message);
 
-            await _locker.DecrementAsync(key, cancellationToken);
+            _locker.Release(key);
         }
     }
 
