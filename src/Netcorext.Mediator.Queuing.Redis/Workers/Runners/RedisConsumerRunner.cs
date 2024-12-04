@@ -1,6 +1,5 @@
 using FreeRedis;
 using Microsoft.Extensions.Logging;
-using Netcorext.Extensions.Threading;
 using Netcorext.Mediator.Queuing.Redis.Extensions;
 using Netcorext.Mediator.Queuing.Redis.Helpers;
 using Netcorext.Mediator.Queuing.Redis.Utilities;
@@ -137,5 +136,7 @@ internal class RedisConsumerRunner : IWorkerRunner<ConsumerWorker>
     }
 
     public void Dispose()
-    { }
+    {
+        _locker.Dispose();
+    }
 }

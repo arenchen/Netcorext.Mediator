@@ -11,8 +11,6 @@ namespace Netcorext.Mediator.Queuing.Redis.Runners;
 
 internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
 {
-    private static bool _isDetecting;
-
     private readonly IServiceProvider _serviceProvider;
     private readonly MediatorOptions _mediatorOptions;
     private readonly RedisQueuing _queuing;
@@ -20,6 +18,7 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
     private readonly RedisOptions _options;
     private readonly ISerializer _serializer;
     private readonly ILogger<PendingStreamRunner> _logger;
+    private readonly SemaphoreSlim _locker = new(1, 1);
 
     public PendingStreamRunner(IServiceProvider serviceProvider, MediatorOptions mediatorOptions, IQueuing queuing, RedisOptions options, ISerializer serializer, ILogger<PendingStreamRunner> logger)
     {
@@ -38,9 +37,8 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
         {
             await Task.Delay(_options.StreamIdleTime ?? RedisOptions.DEFAULT_STREAM_IDLE_TIME, cancellationToken);
 
-            if (_isDetecting) continue;
-
-            _isDetecting = true;
+            if (!await _locker.WaitAsync(0, cancellationToken))
+                continue;
 
             await _redis.RegisterConsumerAsync(_mediatorOptions.ServiceMaps, _options.Prefix, _options.GroupName, _options.MachineName, _options.GroupNewestId);
 
@@ -53,7 +51,7 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
             }
             finally
             {
-                _isDetecting = false;
+                _locker.Release();
             }
         }
     }
@@ -151,5 +149,7 @@ internal class PendingStreamRunner : IWorkerRunner<ConsumerWorker>
     }
 
     public void Dispose()
-    { }
+    {
+        _locker.Dispose();
+    }
 }
