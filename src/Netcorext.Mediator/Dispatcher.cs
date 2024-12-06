@@ -14,14 +14,14 @@ public class Dispatcher : IDispatcher
     private readonly IEnumerable<IPipeline> _pipelines;
     private readonly IServiceProvider _serviceProvider;
     private readonly Type _voidTaskResult = Type.GetType("System.Threading.Tasks.VoidTaskResult")!;
-    private readonly Dictionary<Type, ServiceMap> _serviceMapDictionary;
+    private readonly Dictionary<(Type, int), ServiceMap> _serviceMapDictionary;
 
     public Dispatcher(IServiceProvider serviceProvider, IQueuing queuing, IEnumerable<IPipeline> pipelines, MediatorOptions options)
     {
         _serviceProvider = serviceProvider;
         _queuing = queuing;
         _pipelines = pipelines;
-        _serviceMapDictionary = options.ServiceMaps.ToDictionary(k => k.Service, v => v);
+        _serviceMapDictionary = options.ServiceMaps.ToDictionary(k => (k.Service, k.ArgumentsCount), v => v);
     }
 
     public Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
@@ -53,7 +53,7 @@ public class Dispatcher : IDispatcher
 
         var requestType = request.GetType();
 
-        if (!_serviceMapDictionary.TryGetValue(requestType, out var map))
+        if (!_serviceMapDictionary.TryGetValue((requestType, parameters.Length), out var map))
             throw new KeyNotFoundException($"ServiceMap not found for requestType: {requestType}");
 
         var handlerType = map.Interface;
